@@ -8,6 +8,7 @@ import { FormStorage } from '../components/formStorage.js';
 import { SAMPLE_INSTALLATION_DATA } from '../sampleData.js';
 import { supabaseService } from '../services/supabaseService.js';
 import { isValidBase64Image } from '../utils/security.js';
+import { buildInspectionSummaryHtml } from '../utils/inspectionSummary.js';
 import logoUrl from '../../assets/ecoworks-logo.png';
 import bannerUrl from '../../assets/ecoworks-banner.png';
 
@@ -47,6 +48,19 @@ export class InstallationForm {
         <div class="wizard-step" data-step="4">
           <div class="wizard-step-num">4</div>
           <div class="wizard-step-label">Summary & Sign-off</div>
+        </div>
+      </div>
+
+      ${this.ocularData ? `
+        <div class="no-print" style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+          <button type="button" class="btn btn-outline" id="btn-preview-ocular-data">Preview Ocular Inspection</button>
+        </div>
+      ` : ''}
+
+      <!-- Ocular Inspection Preview Overlay (read-only reference while filling out the installation) -->
+      <div class="modal-overlay no-print" id="ocular-preview-overlay" style="display: none;">
+        <div class="modal-dialog" style="max-width: 640px; max-height: 85vh; overflow-y: auto;">
+          <div id="ocular-preview-content"></div>
         </div>
       </div>
 
@@ -532,7 +546,37 @@ export class InstallationForm {
     this.initEvents();
     this.initPhotoUploaders();
     this.initWizard();
+    this.initOcularPreview();
     this.updateInstallSummary();
+  }
+
+  // Lets the installer glance back at the full ocular inspection (site
+  // photos, electrical specs, materials estimate, sign-off) at any point
+  // while filling out the installation — not just once before starting, so
+  // it stays available across every wizard step. No-op if this installation
+  // wasn't started from a Ready for Install record (nothing to preview).
+  initOcularPreview() {
+    const btn = document.getElementById('btn-preview-ocular-data');
+    const overlay = document.getElementById('ocular-preview-overlay');
+    const content = document.getElementById('ocular-preview-content');
+    if (!btn || !overlay || !content) return;
+
+    btn.addEventListener('click', () => {
+      content.innerHTML = `
+        ${buildInspectionSummaryHtml(this.ocularData)}
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btn-close-ocular-preview">Close</button>
+        </div>
+      `;
+      content.querySelector('#btn-close-ocular-preview').addEventListener('click', () => {
+        overlay.style.display = 'none';
+      });
+      overlay.style.display = 'flex';
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
   }
 
   initWizard() {
